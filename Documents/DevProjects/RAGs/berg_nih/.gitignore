@@ -1,0 +1,25 @@
+# Create .gitignore
+echo "# Virtual environments
+.venv/
+test_env/
+test_transcript_env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment variables
+.env
+
+# Large data files (optional - you may want to include some)
+data/raw/
+*.json
+!berg_complete_catalog.json
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db" > .gitignore

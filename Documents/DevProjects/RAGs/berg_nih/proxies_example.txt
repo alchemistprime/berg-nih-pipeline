@@ -1,0 +1,16 @@
+# Example proxy file for transcript_extractor.py
+# Format: protocol://ip:port or protocol://username:password@ip:port
+# One proxy per line, comments start with #
+
+# Free proxy examples (these may not work):
+# http://proxy1.example.com:8080
+# https://proxy2.example.com:3128
+# socks5://proxy3.example.com:1080
+
+# Premium proxy examples:
+# http://user:pass@premium1.provider.com:8080
+# https://user:pass@premium2.provider.com:3128
+
+# Note: Replace with actual working proxies
+# Most free proxies are unreliable and may be blocked by YouTube
+# For production use, consider premium proxy services
