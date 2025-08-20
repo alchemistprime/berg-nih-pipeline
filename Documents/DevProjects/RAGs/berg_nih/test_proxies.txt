@@ -1,6 +1,0 @@
-# Oxylabs Residential Proxies
-http://customer-dragon_mIxcV-cc-US:Dragontooth1_@pr.oxylabs.io:7777
-
-# Note: Oxylabs residential proxies rotate automatically
-# Each request will come from a different residential IP
-# This should bypass YouTube's IP blocking effectively

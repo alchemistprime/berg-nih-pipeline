@@ -202,3 +202,7 @@
   Data Structure:
   - Should we pre-process the datasets into a symptom index?
   - Create intermediate "knowledge graph" of symptoms→deficiencies→treatments?
+
+
+## Windsurf crashed.
+We worked out a script finally you can checked

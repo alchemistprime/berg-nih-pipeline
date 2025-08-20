@@ -531,13 +531,108 @@ if __name__ == "__main__":
     
     return script_filename
 
+def show_processing_status():
+    """Show current processing status and next start index"""
+    database_file = "data/processed/berg_complete_database.json"
+    filtered_catalog_file = "data/processed/berg_filtered_catalog.json"
+    
+    try:
+        # Load current database
+        if os.path.exists(database_file):
+            with open(database_file, 'r', encoding='utf-8') as f:
+                database = json.load(f)
+            processed_count = len(database.get('videos', []))
+        else:
+            processed_count = 0
+        
+        # Load filtered catalog to get total
+        if os.path.exists(filtered_catalog_file):
+            with open(filtered_catalog_file, 'r', encoding='utf-8') as f:
+                catalog = json.load(f)
+            total_videos = len(catalog.get('videos', []))
+        else:
+            total_videos = 0
+        
+        # Calculate progress
+        progress_pct = (processed_count / total_videos * 100) if total_videos > 0 else 0
+        next_index = processed_count  # Sequential processing
+        
+        # Display status
+        print("\n" + "="*60)
+        print("📊 PROCESSING STATUS")
+        print("="*60)
+        print(f"📁 Database: {processed_count} videos processed")
+        print(f"📁 Filtered catalog: {total_videos} total videos")
+        print(f"📈 Progress: {progress_pct:.1f}% complete")
+        print(f"🚀 Next start index: {next_index}")
+        print("="*60)
+        
+        if next_index < total_videos:
+            print(f"\n🎯 NEXT RUN COMMAND:")
+            print(f"python scripts/transcript_extractor_human_batch.py --start-index {next_index}")
+        else:
+            print(f"\n✅ ALL VIDEOS PROCESSED!")
+        
+        print()
+        
+    except Exception as e:
+        print(f"❌ Error checking status: {e}")
+
+def append_to_database(batch_results, start_index, end_index):
+    """Append batch results to berg_complete_database.json"""
+    database_file = "data/processed/berg_complete_database.json"
+    
+    try:
+        # Load existing database or create new one
+        if os.path.exists(database_file):
+            with open(database_file, 'r', encoding='utf-8') as f:
+                database = json.load(f)
+        else:
+            database = {
+                "database_metadata": {
+                    "created_at": datetime.now().isoformat(),
+                    "description": "Complete database of all processed Dr. Berg videos with full metadata",
+                    "total_videos": 0,
+                    "data_sources": []
+                },
+                "processing_summary": {
+                    "videos_processed": 0,
+                    "batch_files_processed": 0,
+                    "earliest_batch": None,
+                    "latest_batch": datetime.now().isoformat()
+                },
+                "videos": []
+            }
+        
+        # Add new videos to database
+        existing_videos = database.get('videos', [])
+        existing_videos.extend(batch_results)
+        database['videos'] = existing_videos
+        
+        # Update metadata
+        database['database_metadata']['total_videos'] = len(existing_videos)
+        database['database_metadata']['last_updated'] = datetime.now().isoformat()
+        database['processing_summary']['videos_processed'] = len(existing_videos)
+        database['processing_summary']['latest_batch'] = datetime.now().isoformat()
+        
+        # Save updated database
+        with open(database_file, 'w', encoding='utf-8') as f:
+            json.dump(database, f, indent=2, ensure_ascii=False)
+        
+        logger.info(f"✅ Appended {len(batch_results)} videos to database")
+        return True
+        
+    except Exception as e:
+        logger.error(f"❌ Error appending to database: {e}")
+        return False
+
 def main():
     """Main execution for human-like batch processing"""
     import argparse
     
     parser = argparse.ArgumentParser(description='Dr. Berg Human-Like Batch Transcript Extractor')
-    parser.add_argument('--input-file', type=str, default='data/processed/berg_complete_catalog.json', help='Input video catalog file')
-    parser.add_argument('--target-videos', type=int, default=50, help='Total number of videos to process (default: 50)')
+    parser.add_argument('--input-file', type=str, default='data/processed/berg_filtered_catalog.json', help='Input video catalog file (default: filtered catalog)')
+    parser.add_argument('--target-videos', type=int, default=10, help='Total number of videos to process (default: 10)')
     parser.add_argument('--videos-per-batch', type=int, default=10, help='Videos per batch (default: 10)')
     parser.add_argument('--use-proxies', action='store_true', default=True, help='Enable proxy rotation (default: True)')
     parser.add_argument('--proxy-file', type=str, default='test_proxies.txt', help='Proxy list file (default: test_proxies.txt)')
@@ -545,8 +640,14 @@ def main():
     parser.add_argument('--max-duration', type=int, default=300, help='Maximum video duration in seconds (default: 300)')
     parser.add_argument('--start-index', type=int, default=0, help='Start from video index N (default: 0)')
     parser.add_argument('--create-parallel', type=int, help='Create N parallel script instances for simultaneous execution')
+    parser.add_argument('--status', action='store_true', help='Show current processing status and next start index')
     
     args = parser.parse_args()
+    
+    # Handle status check
+    if args.status:
+        show_processing_status()
+        return
     
     if args.create_parallel:
         print(f"Creating {args.create_parallel} parallel script instances...")
@@ -596,6 +697,58 @@ def main():
         max_duration=args.max_duration,
         start_index=args.start_index
     )
+    
+    # Extract processed videos from batch files and append to database
+    all_processed_videos = []
+    for batch_file in batch_files:
+        try:
+            with open(batch_file, 'r', encoding='utf-8') as f:
+                batch_data = json.load(f)
+            if 'videos' in batch_data:
+                all_processed_videos.extend(batch_data['videos'])
+        except Exception as e:
+            logger.error(f"Error reading batch file {batch_file}: {e}")
+    
+    if all_processed_videos:
+        # Append to database
+        end_index = args.start_index + len(all_processed_videos) - 1
+        success = append_to_database(all_processed_videos, args.start_index, end_index)
+        
+        if success:
+            # Show batch completion summary
+            print(f"\n" + "="*60)
+            print("✅ BATCH COMPLETE!")
+            print("="*60)
+            print(f"📊 This batch: Index {args.start_index}-{end_index} ({len(all_processed_videos)} videos)")
+            
+            # Show total progress
+            try:
+                database_file = "data/processed/berg_complete_database.json"
+                with open(database_file, 'r', encoding='utf-8') as f:
+                    database = json.load(f)
+                total_processed = len(database.get('videos', []))
+                
+                # Get total videos in filtered catalog for percentage
+                try:
+                    with open("data/processed/berg_filtered_catalog.json", 'r', encoding='utf-8') as f:
+                        catalog = json.load(f)
+                    total_videos = len(catalog.get('videos', []))
+                    progress_pct = (total_processed / total_videos * 100) if total_videos > 0 else 0
+                    print(f"📈 Total processed: {total_processed} videos ({progress_pct:.1f}%)")
+                except:
+                    print(f"📈 Total processed: {total_processed} videos")
+                
+                next_index = args.start_index + len(all_processed_videos)
+                print(f"🚀 Next run: --start-index {next_index}")
+                
+            except Exception as e:
+                logger.error(f"Error showing progress: {e}")
+            
+            print("="*60)
+        else:
+            print(f"\n❌ Error appending results to database")
+    else:
+        print(f"\n⚠️ No videos were processed successfully")
     
     print(f"\n✓ Human-like batch processing completed!")
     print(f"✓ Created {len(batch_files)} batch files")
